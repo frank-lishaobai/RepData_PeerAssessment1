@@ -1,25 +1,96 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research Course Project 1"
+author: "LI Shaobai"
+date: "2020/6/22"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+READING DATA
+------------
+```{r reading_data}
+dat=read.csv('activity.csv')
+```
 
+TOTAL STEPS PER DAY
+-------------------
+```{r total_steps_per_day}
+s1=split(dat,dat$date)
+totalsteps=as.data.frame(sapply(s1,function(x) sum(x$steps)))   #calculate sums
+names(totalsteps)='steps'
+print(totalsteps)       #show the total number of steps taken per day
+hist(totalsteps$steps, main='Histogram of Daily Total Steps', xlab='steps')     #plot histogram
+summary(totalsteps)
+```
+**As the data summary shows, the mean and the median of the total number of steps taken per day are  10766 and 10765 respectively.**
 
+AVERAGE DAILY ACTIVITY PATTERN
+------------------------------
+```{r average_daily_activity_pattern}
+s2=split(dat,dat$interval)
+stepsper5min=as.data.frame(sapply(s2,function(x) mean(x$steps,na.rm=TRUE)))     #drop NAs for means calculation
+names(stepsper5min)='steps'
+stepsper5min$interval=row.names(stepsper5min)
+with(stepsper5min,plot(interval,steps,type='l',main='Average Steps per 5 min')) #making the time series plot
+stepsper5min$interval[which.max(stepsper5min$steps)]     #search for the maximum 5-minute interval
+```
+**So the 5-minute interval of 8:35-8:40 contains the maximum number of steps.**
 
-## What is mean total number of steps taken per day?
+IMPUTING MISSING VALUES
+-----------------------
+```{r imputing_missing_values}
+summary(dat)    #check NAs in the original data set
+#creating a new data set by imputing missing steps with the mean for that 5-minute interval
+newdat=dat
+for (i in 1:nrow(newdat)) {
+     if(is.na(newdat$steps[i])==TRUE){
+         index=which(stepsper5min$interval==newdat$interval[i])
+         newdat$steps[i]=stepsper5min$steps[index]
+     }
+ }
+s3=split(newdat,newdat$date)
+newtotalsteps=as.data.frame(sapply(s3,function(x) sum(x$steps)))        #calculate sums
+names(newtotalsteps)='steps'
+hist(newtotalsteps$steps, main='New Histogram of Daily Total Steps', xlab='steps')      #plot histogram
+summary(newtotalsteps)
+```
+**As the summary of the original data set shows, there are 2304 NAs only in the 'steps' column, i.e. there are 2304 rows with NAs totally;**
 
+**My imputing strategy is to use the mean steps for that 5-minute interval;**
 
+**As the summary of the new data set shows, the mean and the median of the total number of steps taken per day are both 10766, of which the median is 1 more than the original while the mean is the same;**
 
-## What is the average daily activity pattern?
+**As the two histograms shows, imputing missing data with the mean for that 5_minute interval gathers more data towards the middle of the plot.**
 
+DIFFERENCE BETWEEN WEEKDAYS AND WEEKENDS
+----------------------------------------
+```{r difference_between_weekdays_and_weekends}
+for (j in 1:nrow(newdat)) {
+     if(weekdays(as.Date(newdat$date[j]))=='星期六'|weekdays(as.Date(newdat$date[j]))=='星期日'){
+         newdat$day[j]='weekend'
+     }
+     else{newdat$day[j]='weekday'}
+ }
+newdat$day=as.factor(newdat$day)        #create the new factor variable
+str(newdat)     #show the new factor variable
+#calculate for weekdays and weekends respectively
+weekdaydat=subset(newdat,day=='weekday')
+s4=split(weekdaydat,weekdaydat$interval)
+weekdaysteps=as.data.frame(sapply(s4,function(x) mean(x$steps,na.rm=TRUE)))
+names(weekdaysteps)='steps'
+weekdaysteps$interval=row.names(weekdaysteps)
+weekdaysteps$day=rep('weekday',nrow(weekdaysteps))
+weekenddat=subset(newdat,day=='weekend')
+s5=split(weekenddat,weekenddat$interval)
+weekendsteps=as.data.frame(sapply(s5,function(x) mean(x$steps,na.rm=TRUE)))
+names(weekendsteps)='steps'
+weekendsteps$interval=row.names(weekendsteps)
+weekendsteps$day=rep('weekend',nrow(weekendsteps))
+steps=rbind(weekdaysteps,weekendsteps)  #combine the two dataframe together for ggplot
+library(ggplot2)
+ggplot(steps,aes(interval,steps,group=1))+geom_line()+facet_grid(day~.)+theme(axis.text.x  = element_blank())        #hide x scale for clarity
+```
 
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
